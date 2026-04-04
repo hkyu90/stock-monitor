@@ -1,35 +1,151 @@
 # ============================================================
-# 관심종목 & 보유종목 리스트
-# 여기에 등록된 종목은 매일 모니터링됩니다
+# 보유종목 & 관심종목 리스트
+# 2026-04-04 기준 포트폴리오 등록
 # ============================================================
 
 # --- 보유 종목 (매도 타이밍 모니터링) ---
-# avg_price: 평균 매수가, shares: 보유 수량
 portfolio:
-  krx: []
-    # 예시:
-    # - code: "005930"
-    #   name: "삼성전자"
-    #   avg_price: 75000
-    #   shares: 100
-    #   memo: "반도체 사이클 회복 기대"
-  us: []
-    # 예시:
-    # - ticker: "NVDA"
-    #   name: "NVIDIA"
-    #   avg_price: 120
-    #   shares: 50
-    #   memo: "AI 인프라"
+  krx:
+    - code: "448290"
+      name: "TIGER 미국S&P500(H)"
+      avg_price: 13245
+      shares: 10
+      memo: "미국 S&P500 환헤지 ETF"
+
+    - code: "448300"
+      name: "TIGER 미국나스닥100(H)"
+      avg_price: 15803
+      shares: 10
+      memo: "미국 나스닥100 환헤지 ETF"
+
+    - code: "468530"
+      name: "프로티나"
+      avg_price: 80300
+      shares: 1
+      memo: "암 동반진단 기기"
+
+    - code: "475960"
+      name: "토모큐브"
+      avg_price: 52660
+      shares: 5
+      memo: "홀로그래피 현미경"
+
+    - code: "478340"
+      name: "나라스페이스테크놀로지"
+      avg_price: 54396
+      shares: 14
+      memo: "광학 큐브위성"
+
+    - code: "226340"
+      name: "본느"
+      avg_price: 937
+      shares: 60
+      memo: "화장품 수출"
+
+    - code: "247540"
+      name: "에코프로비엠"
+      avg_price: 472929
+      shares: 7
+      memo: "2차전지 양극재"
+
+    - code: "402030"
+      name: "코난테크놀로지"
+      avg_price: 24375
+      shares: 10
+      memo: "AI 자연어처리"
+
+    - code: "005930"
+      name: "삼성전자"
+      avg_price: 172550
+      shares: 2
+      memo: "반도체"
+
+    - code: "006880"
+      name: "신송홀딩스"
+      avg_price: 7989
+      shares: 137
+      memo: ""
+
+    - code: "010690"
+      name: "화신"
+      avg_price: 21366
+      shares: 6
+      memo: "자동차부품"
+
+    - code: "103140"
+      name: "풍산"
+      avg_price: 112050
+      shares: 2
+      memo: "비철금속/방산"
+
+  us:
+    - ticker: "NBIS"
+      name: "네비우스 그룹"
+      avg_price: 62.72
+      shares: 12
+      memo: "AI 인프라 (前 Yandex)"
+
+    - ticker: "TSLA"
+      name: "테슬라"
+      avg_price: 232.39
+      shares: 3
+      memo: "전기차/자율주행/에너지"
+
+    - ticker: "PLTR"
+      name: "팔란티어 테크"
+      avg_price: 139.61
+      shares: 6
+      memo: "데이터 분석 플랫폼"
+
+    - ticker: "CRWV"
+      name: "코어위브"
+      avg_price: 128.88
+      shares: 9
+      memo: "AI GPU 클라우드"
+
+    - ticker: "NVDA"
+      name: "엔비디아"
+      avg_price: 112.60
+      shares: 3
+      memo: "AI 반도체 대장주"
+
+    - ticker: "AAPL"
+      name: "애플"
+      avg_price: 208.21
+      shares: 2
+      memo: "애플 인텔리전스"
+
+    - ticker: "GOOGL"
+      name: "알파벳 A"
+      avg_price: 172.34
+      shares: 1
+      memo: "검색/클라우드/AI"
+
+    - ticker: "INTC"
+      name: "인텔"
+      avg_price: 22.45
+      shares: 4
+      memo: "반도체 파운드리"
+
+    - ticker: "IONQ"
+      name: "아이온큐"
+      avg_price: 48.79
+      shares: 6
+      memo: "양자컴퓨팅"
+
+    - ticker: "CRCL"
+      name: "써클 인터넷 그룹"
+      avg_price: 145.56
+      shares: 1
+      memo: "USDC 스테이블코인"
+
+    - ticker: "RGTI"
+      name: "리게티 컴퓨팅"
+      avg_price: 28.39
+      shares: 2
+      memo: "양자컴퓨팅"
 
 # --- 관심종목 (매수 타이밍 모니터링) ---
 watchlist:
   krx: []
-    # 예시:
-    # - code: "000660"
-    #   name: "SK하이닉스"
-    #   memo: "HBM 수혜"
   us: []
-    # 예시:
-    # - ticker: "AAPL"
-    #   name: "Apple"
-    #   memo: "애플 인텔리전스"
