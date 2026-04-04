@@ -168,8 +168,12 @@ def save_to_obsidian(content: str, config: dict | None = None):
     return filepath
 
 
-def generate_watchlist_report(watchlist_results: list[dict], config: dict | None = None) -> str:
-    """관심종목 모니터링 리포트"""
+def generate_watchlist_report(
+    watchlist_results: list[dict],
+    config: dict | None = None,
+    portfolio_results: list[dict] | None = None,
+) -> str:
+    """관심종목 + 보유종목 모니터링 리포트"""
     if config is None:
         config = load_config()
 
@@ -177,13 +181,77 @@ def generate_watchlist_report(watchlist_results: list[dict], config: dict | None
     lines = []
 
     lines.append("---")
-    lines.append(f"tags: [주식모니터링, 관심종목]")
+    lines.append(f"tags: [주식모니터링, 포트폴리오]")
     lines.append(f"date: {today.isoformat()}")
     lines.append(f"type: stock-watchlist")
     lines.append("---")
     lines.append("")
-    lines.append(f"# 👀 관심종목 모니터링")
+    lines.append(f"# 📋 주식 포트폴리오 & 관심종목 모니터링")
     lines.append(f"> {today.isoformat()} 업데이트")
+    lines.append("")
+
+    # --- 보유종목 매도 시그널 ---
+    if portfolio_results:
+        lines.append("## 💼 보유종목 매도 타이밍 모니터링")
+        lines.append("")
+        lines.append("| 종목 | 시장 | 매수가 | 현재가 | 수익률 | 평가액 | 중기 | 장기 | 매도 시그널 |")
+        lines.append("|------|------|--------|--------|--------|--------|------|------|-------------|")
+
+        total_invested = 0
+        total_current = 0
+
+        for stock in portfolio_results:
+            name = stock["name"]
+            market = stock["market"]
+            avg_price = stock.get("avg_price", 0)
+            shares = stock.get("shares", 0)
+            current_price = stock["price"]
+
+            pnl_pct = ((current_price / avg_price) - 1) * 100 if avg_price > 0 else 0
+            invested = avg_price * shares
+            current_val = current_price * shares
+            total_invested += invested
+            total_current += current_val
+
+            pnl_emoji = "📈" if pnl_pct > 0 else "📉"
+            mid_signal = stock["midterm"]["signal"]
+            long_signal = stock["longterm"]["signal"]
+
+            # 매도 판단
+            sell_signals = []
+            if stock["midterm"]["score"] <= 35:
+                sell_signals.append("중기 매도시그널")
+            if stock["longterm"]["score"] <= 35:
+                sell_signals.append("장기 매도시그널")
+            if pnl_pct >= 20:
+                sell_signals.append(f"익절 검토 (+{pnl_pct:.0f}%)")
+            if pnl_pct <= -10:
+                sell_signals.append(f"손절 검토 ({pnl_pct:.0f}%)")
+
+            # 기술적 시그널에서 매도 관련 추출
+            for sig in stock.get("all_signals", []):
+                if any(kw in sig for kw in ["데드크로스", "역배열", "과매수"]):
+                    sell_signals.append(sig)
+
+            sell_str = " / ".join(sell_signals) if sell_signals else "보유 유지"
+            sell_emoji = "🔴" if sell_signals else "🟢"
+
+            lines.append(
+                f"| **{name}** | {market} | {avg_price:,.0f} | {current_price:,.0f} | "
+                f"{pnl_emoji} {pnl_pct:+.1f}% | {current_val:,.0f} | "
+                f"{_signal_emoji(mid_signal)} {stock['midterm']['score']} | "
+                f"{_signal_emoji(long_signal)} {stock['longterm']['score']} | "
+                f"{sell_emoji} {sell_str} |"
+            )
+
+        lines.append("")
+        total_pnl = total_current - total_invested
+        total_pnl_pct = (total_current / total_invested - 1) * 100 if total_invested > 0 else 0
+        lines.append(f"> **포트폴리오 요약**: 투자원금 {total_invested:,.0f} → 평가액 {total_current:,.0f} ({total_pnl_pct:+.1f}%, {total_pnl:+,.0f})")
+        lines.append("")
+
+    # --- 관심종목 ---
+    lines.append("## 👀 관심종목 매수 타이밍 모니터링")
     lines.append("")
 
     if not watchlist_results:

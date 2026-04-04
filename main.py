@@ -42,7 +42,7 @@ def cmd_daily(args):
 
 
 def cmd_watchlist(args):
-    """관심종목 모니터링"""
+    """관심종목 + 보유종목 모니터링"""
     from src.scoring.engine import load_config, score_stock
     from src.data.fetcher import DataFetcher
     from src.report.generator import generate_watchlist_report, save_to_obsidian
@@ -51,28 +51,42 @@ def cmd_watchlist(args):
     fetcher = DataFetcher()
 
     with open("config/watchlist.yaml", "r", encoding="utf-8") as f:
-        watchlist = yaml.safe_load(f)
+        data = yaml.safe_load(f)
 
-    results = []
+    portfolio_results = []
+    watchlist_results = []
 
-    # 한국 종목
+    # --- 보유 종목 ---
+    portfolio = data.get("portfolio", {})
+    for stock in (portfolio.get("krx") or []):
+        result = score_stock(stock["code"], stock["name"], "KOSPI", fetcher, config)
+        if result:
+            result["avg_price"] = stock.get("avg_price", 0)
+            result["shares"] = stock.get("shares", 0)
+            result["memo"] = stock.get("memo", "")
+            portfolio_results.append(result)
+
+    for stock in (portfolio.get("us") or []):
+        result = score_stock(stock["ticker"], stock["name"], "NASDAQ", fetcher, config)
+        if result:
+            result["avg_price"] = stock.get("avg_price", 0)
+            result["shares"] = stock.get("shares", 0)
+            result["memo"] = stock.get("memo", "")
+            portfolio_results.append(result)
+
+    # --- 관심 종목 ---
+    watchlist = data.get("watchlist", {})
     for stock in (watchlist.get("krx") or []):
-        code = stock["code"]
-        name = stock["name"]
-        market = "KOSPI"  # 기본값, pykrx가 자동 판별
-        result = score_stock(code, name, market, fetcher, config)
+        result = score_stock(stock["code"], stock["name"], "KOSPI", fetcher, config)
         if result:
-            results.append(result)
+            watchlist_results.append(result)
 
-    # 미국 종목
     for stock in (watchlist.get("us") or []):
-        ticker = stock["ticker"]
-        name = stock["name"]
-        result = score_stock(ticker, name, "NASDAQ", fetcher, config)
+        result = score_stock(stock["ticker"], stock["name"], "NASDAQ", fetcher, config)
         if result:
-            results.append(result)
+            watchlist_results.append(result)
 
-    report = generate_watchlist_report(results, config)
+    report = generate_watchlist_report(watchlist_results, config, portfolio_results)
 
     # 옵시디언 저장
     import os, datetime as dt
@@ -84,8 +98,8 @@ def cmd_watchlist(args):
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(report)
 
-    print(f"\n관심종목 리포트 저장: {filepath}")
-    print(f"모니터링 종목: {len(results)}개")
+    print(f"\n리포트 저장: {filepath}")
+    print(f"보유종목: {len(portfolio_results)}개 | 관심종목: {len(watchlist_results)}개")
 
 
 def cmd_backtest(args):
