@@ -1,0 +1,45 @@
+# ============================================================
+# 기술주 섹터 분류 매핑
+# is_tech: true인 섹터는 기술주 비중(65%)에 포함
+# ============================================================
+
+# --- KRX 업종 분류 ---
+krx_sectors:
+  반도체: { is_tech: true }
+  IT부품: { is_tech: true }
+  소프트웨어: { is_tech: true }
+  IT서비스: { is_tech: true }
+  통신장비: { is_tech: true }
+  디스플레이: { is_tech: true }
+  전자장비와기기: { is_tech: true }
+  컴퓨터와주변기기: { is_tech: true }
+  게임소프트웨어: { is_tech: true }
+  인터넷서비스: { is_tech: true }
+  디지털컨텐츠: { is_tech: true }
+  2차전지: { is_tech: true }
+  로봇: { is_tech: true }
+  AI: { is_tech: true }
+  바이오: { is_tech: false }       # 기술주이나 별도 분류
+  제약: { is_tech: false }
+  자동차: { is_tech: false }
+  화학: { is_tech: false }
+  철강: { is_tech: false }
+  건설: { is_tech: false }
+  금융: { is_tech: false }
+  유통: { is_tech: false }
+  음식료: { is_tech: false }
+  섬유의복: { is_tech: false }
+
+# --- GICS 섹터 코드 (미국 시장) ---
+gics_tech_sectors:
+  - "Information Technology"
+  - "Communication Services"       # 구글, 메타 등 포함
+
+gics_tech_industries:
+  - "Semiconductors"
+  - "Software"
+  - "IT Services"
+  - "Technology Hardware"
+  - "Electronic Equipment"
+  - "Internet & Direct Marketing Retail"  # 아마존 등
+  - "Interactive Media & Services"        # 구글, 메타

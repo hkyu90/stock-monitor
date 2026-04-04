@@ -1,0 +1,153 @@
+# ============================================================
+# Stock Monitor — 듀얼 투자 전략 설정
+# 중기 모멘텀 스윙 (40%) + 장기 가치성장 (60%)
+# ============================================================
+
+# --- 전략 구성 ---
+strategies:
+  midterm:
+    name: "중기 모멘텀 스윙"
+    holding_period: "2~8주"
+    portfolio_weight: 0.40
+    rebalance: "weekly"
+    report_frequency: "daily"
+  longterm:
+    name: "장기 가치성장"
+    holding_period: "6개월~1년+"
+    portfolio_weight: 0.60
+    rebalance: "monthly"
+    report_frequency: "weekly"
+
+tech_weight: 0.65              # 기술주 비중 목표 (60~70%)
+
+# --- 유니버스 ---
+universe:
+  markets:
+    - KOSPI
+    - KOSDAQ
+    - NASDAQ
+    - SP500
+  min_market_cap_krw: 100000000000    # 1000억 KRW
+  min_market_cap_usd: 500000000       # $500M USD
+  min_avg_volume_20d: 100000
+
+# --- 중기 스코어링 가중치 ---
+midterm_scoring:
+  technical_weight: 0.50
+  fundamental_weight: 0.20
+  momentum_weight: 0.30
+
+# --- 장기 스코어링 가중치 ---
+longterm_scoring:
+  technical_weight: 0.15
+  fundamental_weight: 0.55
+  momentum_weight: 0.30
+
+# --- 기술적 분석 파라미터 ---
+technical:
+  rsi:
+    period: 14
+    oversold: 30
+    overbought: 70
+    weight: 0.20
+  macd:
+    fast: 12
+    slow: 26
+    signal: 9
+    weight: 0.20
+  bollinger:
+    period: 20
+    std_dev: 2
+    weight: 0.15
+  moving_avg:
+    short: 20
+    mid: 60
+    long: 120
+    weight: 0.25
+  volume:
+    surge_threshold: 2.0
+    weight: 0.10
+  stochastic:
+    k_period: 14
+    d_period: 3
+    oversold: 20
+    overbought: 80
+    weight: 0.10
+
+# --- 펀더멘털 분석 파라미터 ---
+fundamental:
+  per:
+    max_sector_ratio: 1.5
+    weight: 0.15
+  pbr:
+    max_sector_ratio: 2.0
+    weight: 0.10
+  roe:
+    min: 8
+    weight: 0.20
+  revenue_growth:
+    min_yoy: 10
+    weight: 0.25
+  operating_margin:
+    min: 5
+    weight: 0.10
+  eps_growth:
+    min_yoy: 10
+    weight: 0.10
+  debt_ratio:
+    max: 200
+    weight: 0.10
+
+# --- 모멘텀 & 센티먼트 ---
+momentum:
+  week52_position:
+    buy_zone_max: 0.70
+    weight: 0.30
+  sector_relative_strength:
+    lookback_days: 20
+    weight: 0.35
+  institutional_flow:
+    lookback_days: 10
+    weight: 0.35
+
+# --- 시그널 임계값 ---
+signals:
+  strong_buy: 80
+  buy: 65
+  neutral: 50
+  sell: 35
+  strong_sell: 0
+
+# --- 매수/매도 전략 ---
+trading:
+  midterm:
+    entry:
+      split_count: 2
+      split_ratio: [0.5, 0.5]
+    exit:
+      trailing_stop_pct: 8
+      take_profit_pct: 15
+      max_loss_pct: 7
+  longterm:
+    entry:
+      split_count: 3
+      split_ratio: [0.4, 0.3, 0.3]
+    exit:
+      trailing_stop_pct: 15
+      take_profit_pct: 40
+      max_loss_pct: 12
+
+# --- 백테스팅 ---
+backtest:
+  period_months: 12
+  initial_capital: 10000000   # 1000만원
+  commission_rate: 0.00015    # 매매 수수료 0.015%
+  tax_rate_kr: 0.0023         # 한국 거래세 0.23%
+  tax_rate_us: 0
+
+# --- 리포트 ---
+report:
+  top_picks_midterm: 10
+  top_picks_longterm: 10
+  obsidian_folder: "06_개인/개인메모"
+  format: "markdown"
