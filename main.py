@@ -42,21 +42,29 @@ def cmd_daily(args):
 
 
 def cmd_watchlist(args):
-    """관심종목 + 보유종목 모니터링"""
+    """관심종목 + 보유종목 심층 모니터링"""
     from src.scoring.engine import load_config, score_stock
     from src.data.fetcher import DataFetcher
-    from src.report.generator import generate_watchlist_report, save_to_obsidian
+    from src.indicators.macro import get_macro_environment
+    from src.signals.hold_analyzer import analyze_hold_decision
+    from src.report.generator import generate_watchlist_report
 
     config = load_config()
     fetcher = DataFetcher()
+
+    # 1. 거시경제 환경 분석
+    logger.info("거시경제 환경 분석 중...")
+    macro_data = get_macro_environment()
+    logger.info(f"거시경제: {macro_data['macro_outlook']} ({macro_data['macro_score']}점)")
 
     with open("config/watchlist.yaml", "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
 
     portfolio_results = []
-    watchlist_results = []
+    hold_analyses = []
 
-    # --- 보유 종목 ---
+    # 2. 보유 종목 스코어링 + 심층 분석
+    logger.info("보유종목 심층 분석 중...")
     portfolio = data.get("portfolio", {})
     for stock in (portfolio.get("krx") or []):
         result = score_stock(stock["code"], stock["name"], "KOSPI", fetcher, config)
@@ -66,6 +74,12 @@ def cmd_watchlist(args):
             result["memo"] = stock.get("memo", "")
             portfolio_results.append(result)
 
+            # 심층 분석
+            ohlcv = fetcher.fetch_ohlcv(stock["code"], "KOSPI")
+            ha = analyze_hold_decision(result, ohlcv, macro_data, config)
+            hold_analyses.append(ha)
+            logger.info(f"  {stock['name']}: {ha['decision']} (리스크: {ha['risk_level']})")
+
     for stock in (portfolio.get("us") or []):
         result = score_stock(stock["ticker"], stock["name"], "NASDAQ", fetcher, config)
         if result:
@@ -74,7 +88,13 @@ def cmd_watchlist(args):
             result["memo"] = stock.get("memo", "")
             portfolio_results.append(result)
 
-    # --- 관심 종목 ---
+            ohlcv = fetcher.fetch_ohlcv(stock["ticker"], "NASDAQ")
+            ha = analyze_hold_decision(result, ohlcv, macro_data, config)
+            hold_analyses.append(ha)
+            logger.info(f"  {stock['name']}: {ha['decision']} (리스크: {ha['risk_level']})")
+
+    # 3. 관심 종목
+    watchlist_results = []
     watchlist = data.get("watchlist", {})
     for stock in (watchlist.get("krx") or []):
         result = score_stock(stock["code"], stock["name"], "KOSPI", fetcher, config)
@@ -86,7 +106,11 @@ def cmd_watchlist(args):
         if result:
             watchlist_results.append(result)
 
-    report = generate_watchlist_report(watchlist_results, config, portfolio_results)
+    # 4. 리포트 생성
+    report = generate_watchlist_report(
+        watchlist_results, config, portfolio_results,
+        macro_data=macro_data, hold_analyses=hold_analyses,
+    )
 
     # 옵시디언 저장
     import os, datetime as dt
@@ -99,6 +123,7 @@ def cmd_watchlist(args):
         f.write(report)
 
     print(f"\n리포트 저장: {filepath}")
+    print(f"거시경제: {macro_data['macro_outlook']} ({macro_data['macro_score']}점)")
     print(f"보유종목: {len(portfolio_results)}개 | 관심종목: {len(watchlist_results)}개")
 
 
