@@ -343,6 +343,7 @@ def generate_watchlist_report(
 
 def _decision_emoji(decision: str) -> str:
     return {
+        "추가 매수": "🟢➕",
         "적극 보유": "🟢",
         "보유 유지": "🔵",
         "관망": "🟡",

@@ -249,10 +249,18 @@ def _analyze_fundamental_direction(stock_result: dict) -> dict:
     else:
         direction = "악화"
 
+    # 폭발적 성장 플래그 (매출 성장률 40%+ 또는 30% + 흑자)
+    explosive_growth = False
+    if rev_val is not None and rev_val >= 40:
+        explosive_growth = True
+    elif rev_val is not None and rev_val >= 30 and (op_val is None or op_val >= 0):
+        explosive_growth = True
+
     return {
         "direction": direction,
         "score": round(direction_score, 1),
         "signals": signals,
+        "explosive_growth": explosive_growth,
     }
 
 
@@ -280,7 +288,15 @@ def _make_decision(
     pnl_pct: float,
     config: dict,
 ) -> tuple:
-    """종합 보유/매도 판단"""
+    """
+    종합 보유/매도 판단 (약세장 축적 철학 반영)
+
+    가중치 원칙:
+    - 펀더멘털 방향이 최우선 (±4)
+    - 추세는 매우 강할 때만 (±3, ADX 30+)
+    - 매크로는 보조 (±1, 펀더멘털 강건 시 면제)
+    - 지지선 이탈 시 펀더멘털 강건 종목은 '축적 구간'으로 해석
+    """
     reasoning = []
     risk_points = 0
     hold_points = 0
@@ -291,109 +307,151 @@ def _make_decision(
     macro = factors["macro"]
     sector = factors["sector"]
 
-    mid_score = stock_result.get("midterm", {}).get("score", 50)
-    long_score = stock_result.get("longterm", {}).get("score", 50)
+    fund_score = fund_dir.get("score", 50)
+    explosive_growth = fund_dir.get("explosive_growth", False)
+    # 펀더멘털 강건 = 방향 스코어 65+ OR 폭발적 성장
+    is_strong_fund = fund_score >= 65 or explosive_growth
+    dist_support = sr.get("distance_to_support_pct", 0)
 
-    # --- 거시경제 판단 ---
-    macro_score = macro["score"]
-    if macro_score >= 60:
-        hold_points += 2
-        reasoning.append(f"거시경제 {macro['outlook']} — 시장 환경 양호")
-    elif macro_score < 40:
-        risk_points += 2
-        reasoning.append(f"거시경제 {macro['outlook']} — 방어적 운용 필요")
-    else:
-        reasoning.append(f"거시경제 {macro['outlook']}")
-
-    # --- 기업 펀더멘털 방향 ---
+    # --- 1. 기업 펀더멘털 방향 (최우선, ±4) ---
     if fund_dir["direction"] == "개선":
-        hold_points += 3
+        hold_points += 4
         reasoning.append("펀더멘털 개선 중 — " + ", ".join(fund_dir["signals"][:2]))
     elif fund_dir["direction"] == "악화":
-        risk_points += 3
+        risk_points += 4
         reasoning.append("펀더멘털 악화 — " + ", ".join(fund_dir["signals"][:2]))
     else:
         if fund_dir["signals"]:
             reasoning.append("펀더멘털 유지 — " + ", ".join(fund_dir["signals"][:2]))
 
-    # --- 추세 강도 & 방향 ---
+    # 폭발적 성장 프리미엄
+    if explosive_growth and fund_dir["direction"] != "개선":
+        hold_points += 2
+        reasoning.append("폭발적 매출성장 → 고성장 프리미엄 적용")
+
+    # --- 2. 거시경제 (±1, 펀더멘털 강건 시 면제) ---
+    macro_score = macro["score"]
+    if is_strong_fund:
+        reasoning.append(f"거시경제 {macro['outlook']} (펀더멘털 강건 → 매크로 영향 제한)")
+    elif macro_score >= 60:
+        hold_points += 1
+        reasoning.append(f"거시경제 {macro['outlook']} — 시장 양호")
+    elif macro_score < 40:
+        risk_points += 1
+        reasoning.append(f"거시경제 {macro['outlook']} — 방어적 운용")
+    else:
+        reasoning.append(f"거시경제 {macro['outlook']}")
+
+    # --- 3. 추세 강도 & 방향 (±3, ADX 30+에서만 강한 페널티) ---
     if trend["direction"] == "상승" and trend["adx"] >= 25:
         hold_points += 3
         reasoning.append(f"강한 상승추세 지속 (ADX {trend['adx']}) — 추세 따라 보유")
-    elif trend["direction"] == "하락" and trend["adx"] >= 25:
+    elif trend["direction"] == "하락" and trend["adx"] >= 30:
         risk_points += 3
-        reasoning.append(f"강한 하락추세 (ADX {trend['adx']}) — 추세 전환 전까지 리스크")
+        reasoning.append(f"매우 강한 하락추세 (ADX {trend['adx']}) — 추세 전환 전 리스크")
+    elif trend["direction"] == "하락" and trend["adx"] >= 25:
+        # 강한 하락이지만 "매우 강한"은 아님. 펀더멘털 강건 종목은 완화
+        if is_strong_fund:
+            risk_points += 1
+            reasoning.append(f"강한 하락추세 (ADX {trend['adx']}) — 펀더멘털 강건, 축적 구간 후보")
+        else:
+            risk_points += 2
+            reasoning.append(f"강한 하락추세 (ADX {trend['adx']})")
     elif trend["turning"]:
-        reasoning.append("추세 전환 신호 감지 — 주의 관찰 필요")
+        reasoning.append("추세 전환 신호 감지 — 주의 관찰")
         risk_points += 1
     else:
         reasoning.append(f"추세 {trend['strength']} ({trend['direction']})")
 
-    # --- 지지/저항선 ---
-    dist_support = sr.get("distance_to_support_pct", 0)
+    # --- 4. 지지/저항선 (±2, 펀더멘털 강건 시 완화) ---
     if sr["position"] == "지지선 아래":
-        risk_points += 2
-        reasoning.append(f"지지선({sr['support']:,.0f}) 이탈 — 추가 하락 리스크")
+        if is_strong_fund:
+            risk_points += 1
+            reasoning.append(f"지지선({sr['support']:,.0f}) 이탈 — 펀더멘털 강건 → 축적 구간")
+        else:
+            risk_points += 2
+            reasoning.append(f"지지선({sr['support']:,.0f}) 이탈 — 추가 하락 리스크")
     elif dist_support < 3:
-        reasoning.append(f"지지선({sr['support']:,.0f}) 근접 — 반등 가능성")
+        if is_strong_fund:
+            hold_points += 1
+            reasoning.append(f"지지선({sr['support']:,.0f}) 근접 — 반등/축적 기회")
+        else:
+            reasoning.append(f"지지선({sr['support']:,.0f}) 근접 — 반등 가능성")
     else:
         reasoning.append(f"지지선 {sr['support']:,.0f} / 저항선 {sr['resistance']:,.0f}")
 
-    # --- 시장 환경 ---
+    # --- 5. 시장 환경 (±1, 펀더멘털 강건 시 면제) ---
     if sector["market_score"] >= 60:
         hold_points += 1
         reasoning.append(f"시장 {sector['market_trend']}")
-    elif sector["market_score"] < 40:
+    elif sector["market_score"] < 40 and not is_strong_fund:
         risk_points += 1
         reasoning.append(f"시장 {sector['market_trend']} — 전반적 약세")
 
-    # --- 수익률 기반 추가 판단 ---
+    # --- 6. 수익률 기반 추가 판단 ---
     if pnl_pct >= 50:
         if trend["direction"] == "상승" and trend["adx"] >= 20:
-            reasoning.append(f"수익률 +{pnl_pct:.0f}%이나 상승추세 유지 → 트레일링 스탑 적용 권장")
             hold_points += 1
+            reasoning.append(f"수익률 +{pnl_pct:.0f}% + 상승추세 → 트레일링 스탑 권장")
         else:
             risk_points += 2
             reasoning.append(f"수익률 +{pnl_pct:.0f}% 고수익, 추세 약화 → 부분 익절 검토")
     elif pnl_pct >= 20:
         if fund_dir["direction"] == "개선":
             hold_points += 1
-            reasoning.append(f"수익률 +{pnl_pct:.0f}%, 펀더멘털 개선 → 보유 유지")
+            reasoning.append(f"수익률 +{pnl_pct:.0f}% + 펀더멘털 개선 → 보유")
         else:
-            reasoning.append(f"수익률 +{pnl_pct:.0f}% — 트레일링 스탑 설정 권장")
+            reasoning.append(f"수익률 +{pnl_pct:.0f}% — 트레일링 스탑 권장")
     elif pnl_pct <= -30:
-        if fund_dir["direction"] == "개선" and trend["direction"] == "상승":
-            reasoning.append(f"손실 {pnl_pct:.0f}%이나 펀더멘털+추세 개선 → 회복 대기")
-            hold_points += 1
+        if is_strong_fund:
+            hold_points += 2
+            reasoning.append(f"손실 {pnl_pct:.0f}%이나 펀더멘털 강건 → 회복 대기/축적")
         elif fund_dir["direction"] == "악화":
             risk_points += 3
-            reasoning.append(f"손실 {pnl_pct:.0f}% + 펀더멘털 악화 → 손절 강력 권고")
+            reasoning.append(f"손실 {pnl_pct:.0f}% + 펀더멘털 악화 → 손절 권고")
         else:
             risk_points += 1
-            reasoning.append(f"손실 {pnl_pct:.0f}% — 추세 전환 확인 후 판단")
+            reasoning.append(f"손실 {pnl_pct:.0f}% — 추세 확인 후 판단")
     elif pnl_pct <= -10:
-        if trend["direction"] == "하락" and trend["adx"] >= 25:
+        if is_strong_fund:
+            reasoning.append(f"손실 {pnl_pct:.0f}% — 펀더멘털 강건, 축적 구간 후보")
+        elif trend["direction"] == "하락" and trend["adx"] >= 25:
             risk_points += 2
-            reasoning.append(f"손실 {pnl_pct:.0f}%, 하락추세 강화 → 매도 검토")
-        else:
-            reasoning.append(f"손실 {pnl_pct:.0f}% — 지지선 확인 후 판단")
+            reasoning.append(f"손실 {pnl_pct:.0f}% + 하락추세 → 매도 검토")
 
     # === 최종 판단 ===
     net_score = hold_points - risk_points
 
-    if net_score >= 4:
-        decision = "적극 보유"
-        hold_horizon = "중장기 보유 유지 (1~3개월+)"
-        risk_level = "낮음"
+    # 추가매수 구간 조건
+    is_accumulation_zone = (
+        is_strong_fund
+        and (pnl_pct < 0 or dist_support < 5 or sr["position"] == "지지선 아래")
+        and not (trend["direction"] == "하락" and trend["adx"] >= 30)
+    )
+
+    if net_score >= 5:
+        if is_accumulation_zone:
+            decision = "추가 매수"
+            hold_horizon = "지지선 분할 매수, 12개월+ 보유"
+            risk_level = "낮음"
+        else:
+            decision = "적극 보유"
+            hold_horizon = "중장기 보유 (6개월+)"
+            risk_level = "낮음"
     elif net_score >= 2:
-        decision = "보유 유지"
-        hold_horizon = "단기 보유 유지 (2~4주), 추세 확인 후 재판단"
-        risk_level = "보통"
-    elif net_score >= 0:
+        if is_accumulation_zone:
+            decision = "추가 매수"
+            hold_horizon = "지지선 근접 분할 매수 (12개월+)"
+            risk_level = "보통"
+        else:
+            decision = "보유 유지"
+            hold_horizon = "2~4주 관찰, 추세 확인"
+            risk_level = "보통"
+    elif net_score >= -1:
         decision = "관망"
         hold_horizon = "1~2주 내 추세 확인 필요"
         risk_level = "주의"
-    elif net_score >= -2:
+    elif net_score >= -4:
         decision = "부분 매도"
         hold_horizon = "보유 물량 30~50% 정리 검토"
         risk_level = "높음"
