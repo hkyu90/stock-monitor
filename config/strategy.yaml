@@ -149,5 +149,5 @@ backtest:
 report:
   top_picks_midterm: 10
   top_picks_longterm: 10
-  obsidian_folder: "06_개인/개인메모"
+  obsidian_folder: "06_개인/주식모니터링"
   format: "markdown"
