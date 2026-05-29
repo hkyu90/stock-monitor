@@ -6,11 +6,16 @@
 
 import datetime as dt
 import logging
+import os
 
 import pandas as pd
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+# 국내 데이터 소스: 기본(로컬)은 pykrx, 클라우드(GitHub Actions 등 해외 IP)에서는
+# KRX 접속이 막히므로 STOCK_MONITOR_KR_SOURCE=yfinance 로 설정해 yfinance(.KS/.KQ)를 사용.
+KR_SOURCE = os.environ.get("STOCK_MONITOR_KR_SOURCE", "pykrx").lower()
 
 
 class KRXFetcher:
@@ -174,6 +179,12 @@ class DataFetcher:
         self.krx = KRXFetcher()
         self.us = USFetcher()
 
+    def _kr_yf_ticker(self, code: str, market: str) -> tuple[str, str]:
+        """국내 코드 → yfinance 티커 (우선 접미사, 대체 접미사). KOSPI=.KS, KOSDAQ=.KQ"""
+        primary = ".KS" if market == "KOSPI" else ".KQ"
+        other = ".KQ" if primary == ".KS" else ".KS"
+        return code + primary, code + other
+
     def fetch_ohlcv(self, code: str, market: str, days: int = 250) -> pd.DataFrame:
         """시장에 맞는 OHLCV 가져오기"""
         end = dt.date.today()
@@ -183,6 +194,14 @@ class DataFetcher:
 
         try:
             if market in ("KOSPI", "KOSDAQ"):
+                if KR_SOURCE == "yfinance":
+                    start_fmt = start.strftime("%Y-%m-%d")
+                    end_fmt = end.strftime("%Y-%m-%d")
+                    primary, other = self._kr_yf_ticker(code, market)
+                    df = self.us.get_ohlcv(primary, start_fmt, end_fmt)
+                    if df.empty:  # 보드(KOSPI/KOSDAQ) 분류가 틀린 경우 대체 접미사로 재시도
+                        df = self.us.get_ohlcv(other, start_fmt, end_fmt)
+                    return df
                 return self.krx.get_ohlcv(code, start_str, end_str)
             else:
                 start_fmt = start.strftime("%Y-%m-%d")
@@ -196,6 +215,14 @@ class DataFetcher:
         """시장에 맞는 펀더멘털 가져오기"""
         try:
             if market in ("KOSPI", "KOSDAQ"):
+                if KR_SOURCE == "yfinance":
+                    primary, other = self._kr_yf_ticker(code, market)
+                    info = self.us.get_info(primary)
+                    if not info.get("market_cap"):  # 보드 분류가 틀린 경우 대체 접미사로 재시도
+                        alt = self.us.get_info(other)
+                        if alt.get("market_cap"):
+                            info = alt
+                    return info
                 date = dt.date.today().strftime("%Y%m%d")
                 fund = self.krx.get_fundamental(code, date)
                 cap = self.krx.get_market_cap(code, date)

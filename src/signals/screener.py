@@ -38,6 +38,18 @@ def get_universe_sample(fetcher: DataFetcher, market: str, config: dict, max_per
     """시장별 유니버스 샘플링 (시총 상위)"""
     try:
         if market in ("KOSPI", "KOSDAQ"):
+            import os
+            if os.environ.get("STOCK_MONITOR_KR_SOURCE", "pykrx").lower() == "yfinance":
+                # 클라우드: KRX 접속이 막히므로 관심종목(config) 기반 유니버스를 yfinance로 스코어링
+                with open("config/watchlist.yaml", "r", encoding="utf-8") as f:
+                    wl = yaml.safe_load(f)
+                krx_wl = wl.get("watchlist", {}).get("krx", [])
+                stocks = [
+                    {"code": s["code"], "name": s["name"],
+                     "sector": s.get("sector", ""), "market": market}
+                    for s in krx_wl if s.get("market", "KOSPI") == market
+                ][:max_per_market]
+                return stocks
             date = dt.date.today().strftime("%Y%m%d")
             df = fetcher.krx.get_universe(market, date)
             # 시총 기준 필터링은 실행 시 수행

@@ -35,6 +35,8 @@ jobs:
         env:
           # 클라우드에서는 iCloud 볼트가 없으므로 repo 내 vault/ 폴더로 출력
           STOCK_MONITOR_VAULT: ${{ github.workspace }}/vault
+          # 미국 IP에서 KRX 접속이 막히므로 국내 종목은 yfinance(.KS/.KQ)로 수집
+          STOCK_MONITOR_KR_SOURCE: yfinance
         run: python main.py daily
 
       - name: 리포트 커밋 & 푸시
