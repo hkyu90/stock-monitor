@@ -135,8 +135,10 @@ python main.py backtest 005930 KOSPI --strategy longterm
 
 ## 리포트 출력
 
-- 옵시디언 볼트: `05_개인/주식모니터링/`
-- 매일 오전 8시(KST) Windows Task Scheduler 자동 실행
+- 옵시디언 볼트: `05_개인/주식모니터링/` (로컬 실행 시)
+- 자동 실행 (이중):
+  - **GitHub Actions** (`.github/workflows/daily.yml`): 매일 08:00 KST 클라우드 실행 → repo `vault/` 폴더에 리포트 자동 커밋 (PC 전원 무관). 국내 종목은 yfinance(.KS/.KQ)로 수집
+  - **로컬 Windows Task Scheduler**: PC 켜져 있을 때 08:00 KST 실행 → iCloud 옵시디언 볼트에 직접 저장 (pykrx 브로드 스캔)
 - 보유종목별 수익률 + 매도 시그널 (익절/손절/기술적 시그널)
 - 포트폴리오 요약 (총 투자원금, 평가액, 수익률)
 
