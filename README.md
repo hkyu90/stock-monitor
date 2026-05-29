@@ -135,7 +135,7 @@ python main.py backtest 005930 KOSPI --strategy longterm
 
 ## 리포트 출력
 
-- 옵시디언 볼트: `06_개인/주식모니터링/`
+- 옵시디언 볼트: `05_개인/주식모니터링/`
 - 매일 오전 8시(KST) Windows Task Scheduler 자동 실행
 - 보유종목별 수익률 + 매도 시그널 (익절/손절/기술적 시그널)
 - 포트폴리오 요약 (총 투자원금, 평가액, 수익률)
