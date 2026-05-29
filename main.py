@@ -114,7 +114,7 @@ def cmd_watchlist(args):
 
     # 옵시디언 저장
     import os, datetime as dt
-    vault = r"C:\Users\User\iCloudDrive\iCloud~md~obsidian\hkyu_note"
+    vault = os.environ.get("STOCK_MONITOR_VAULT", r"C:\Users\User\iCloudDrive\iCloud~md~obsidian\hkyu_note")
     folder = config["report"]["obsidian_folder"]
     target_dir = os.path.join(vault, folder)
     os.makedirs(target_dir, exist_ok=True)

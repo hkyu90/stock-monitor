@@ -11,7 +11,12 @@ from src.scoring.engine import compute_entry_exit, load_config
 
 logger = logging.getLogger(__name__)
 
-OBSIDIAN_VAULT = r"C:\Users\User\iCloudDrive\iCloud~md~obsidian\hkyu_note"
+# 로컬(Windows)에서는 iCloud 옵시디언 볼트로 직접 저장.
+# GitHub Actions 등 클라우드에서는 STOCK_MONITOR_VAULT 환경변수로 출력 경로를 덮어씀.
+OBSIDIAN_VAULT = os.environ.get(
+    "STOCK_MONITOR_VAULT",
+    r"C:\Users\User\iCloudDrive\iCloud~md~obsidian\hkyu_note",
+)
 
 
 def generate_daily_report(screening_result: dict, config: dict | None = None) -> str:
